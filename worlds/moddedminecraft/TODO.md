@@ -54,11 +54,11 @@ try catch around Identifier.validate()
 
 better details for connection errors eg. incorrect name
 
-recipes show up a fair bit
+recipes from certain mods show up, consider excluding advancements with `:recipes/` inside
 
 send message to player only when giving item after connecting
 
-kill others on deathlink
+kill other players in world on deathlink
 
 fucks up if starting item not in location_name_to_item
 
