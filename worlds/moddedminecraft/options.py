@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from Options import OptionDict, PerGameCommonOptions, Choice, TextChoice, DeathLink
+from Options import OptionDict, PerGameCommonOptions, Choice, TextChoice, DeathLink, StartInventory, OptionGroup
 
 class Checks(OptionDict):
     """
@@ -34,12 +34,27 @@ class FinalGoal(TextChoice):
 
 class UnlockType(Choice):
     """
-    controls how locations are accessed.
+    Controls how locations are accessed.
     """
     display_name = "unlock type"
     option_tab = "tab"
     option_tree = "tree"
     default = option_tab
+
+class ModdedMinecraftStartInventory(StartInventory):
+    """
+    Start with the specified amount of these items. Example: '"minecraft:story/root": 1'
+    """
+    verify_item_name = False
+
+OPTION_GROUPS = [
+    OptionGroup(
+        "Item & Location Options", [
+            ModdedMinecraftStartInventory,
+        ]
+    )
+]
+
 
 @dataclass
 class ModdedMinecraftOptions(PerGameCommonOptions):
@@ -48,4 +63,5 @@ class ModdedMinecraftOptions(PerGameCommonOptions):
     unlock_type: UnlockType
     final_goal: FinalGoal
     death_link: DeathLink
-    
+
+    start_inventory: ModdedMinecraftStartInventory

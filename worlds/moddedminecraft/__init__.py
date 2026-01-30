@@ -1,8 +1,8 @@
 from worlds.AutoWorld import World, WebWorld
-from BaseClasses import Item, Location, ItemClassification, Region, CollectionState
+from BaseClasses import Item, Location, ItemClassification, Region, CollectionState, Tutorial
 import json
 
-from .options import ModdedMinecraftOptions, UnlockType, CheckDifficulty
+from .options import ModdedMinecraftOptions, UnlockType, CheckDifficulty, OPTION_GROUPS
 from worlds.LauncherComponents import Component, components, Type, launch as launch_component
 from .Locations import location_name_to_id, item_name_to_id
 from Utils import user_path
@@ -15,17 +15,29 @@ class ModdedMinecraftItem(Item):
     game = "Modded Minecraft"
 
 
+class ModdedMinecraftWebWorld(WebWorld):
+    tutorials = [Tutorial(
+        "Multiworld Setup Guide",
+        "A guide for setting up the Modded Minecraft randomizer connected to Archipelago",
+        "English",
+        "setup_en.md",
+        "setup/en",
+        ["Stuff691734"]
+    )]
+    option_groups = OPTION_GROUPS
+
+
 class ModdedMinecraftWorld(World):
     game = "Modded Minecraft"
     
     topology_present = True
 
     options_dataclass = ModdedMinecraftOptions
-    options = ModdedMinecraftOptions
 
     item_name_to_id = item_name_to_id
     location_name_to_id = location_name_to_id
 
+    web = ModdedMinecraftWebWorld()
 
     def generate_early(self) -> None:
         # get data from checks file
@@ -105,8 +117,6 @@ class ModdedMinecraftWorld(World):
         for region in regions.values():
             menu.connect(region, f"menu -> {region.name}", lambda state, name=region.name: state.has(name, self.player))
         
-        # TODO: this seems off
-        regions[self.options.checks[self.options.final_goal.current_key]["parent_id"]].add_event(self.options.final_goal.current_key, "Victory", location_type=ModdedMinecraftLocation, item_type=ModdedMinecraftItem)
         self.multiworld.regions += [i for i in regions.values()]  + [menu]
 
     def fill_slot_data(self):
@@ -118,7 +128,13 @@ class ModdedMinecraftWorld(World):
         return slot_data
 
     def set_rules(self) -> None:
-        self.multiworld.completion_condition[self.player] = lambda state: state.has("Victory", self.player)
+        # self.multiworld.completion_condition[self.player] = lambda state: state.has("Victory", self.player)
+        if self.options.unlock_type == self.options.unlock_type.option_tab:
+            goal = self.get_root(self.options.final_goal.current_key)
+        elif self.options.unlock_type == self.options.unlock_type.option_tree:
+            goal = self.options.checks[self.options.final_goal.current_key]["parent_id"] or self.options.final_goal.current_key
+        
+        self.multiworld.completion_condition[self.player] = lambda state, goal=goal: state.has(goal, self.player)
     
     def create_item(self, name: str, classification:ItemClassification = ItemClassification.progression) -> ModdedMinecraftItem:
         return ModdedMinecraftItem(name, classification, self.location_name_to_id[name], self.player)
