@@ -61,6 +61,3 @@ send message to player only when giving item after connecting
 kill other players in world on deathlink
 
 fucks up if starting item not in location_name_to_item
-
-### build command
-rm moddedminecraft.apworld; zip -r moddedminecraft.apworld moddedminecraft

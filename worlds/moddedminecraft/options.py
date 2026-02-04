@@ -1,10 +1,11 @@
 from dataclasses import dataclass
-from Options import OptionDict, PerGameCommonOptions, Choice, TextChoice, DeathLink, StartInventory, OptionGroup
+from Options import OptionDict, PerGameCommonOptions, Choice, TextChoice, DeathLink, StartInventory, OptionGroup, Visibility
 
 class Checks(OptionDict):
     """
     Advancements in the game.
     """
+    visibility = Visibility.simple_ui | Visibility.complex_ui | Visibility.template
 
 class CheckDifficulty(Choice):
     """

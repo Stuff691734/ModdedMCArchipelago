@@ -90,7 +90,12 @@ class ModdedMinecraftWorld(World):
             # create all items that are not the direct end of a branch
             items = {}
             for details in self.options.checks.values():
-                items.setdefault(details["parent_id"], self.create_item(details["parent_id"]))
+                if details["parent_id"] != None:
+                    items.setdefault(
+                        details["parent_id"], 
+                        self.create_item(details["parent_id"])
+                    )
+
             item_pool += [item for item in items.values()]
 
         for i in range(total_locations - len(item_pool)):
@@ -103,19 +108,48 @@ class ModdedMinecraftWorld(World):
         regions:dict[str:Region] = {}
         for name, details in self.options.checks.items():
             if self.options.unlock_type == self.options.unlock_type.option_tab:
-                region = regions.setdefault(self.get_root(name), Region(self.get_root(name), self.player, self.multiworld))
+                region = regions.setdefault(
+                    self.get_root(name), 
+                    Region(self.get_root(name), self.player, self.multiworld)
+                )
 
             elif self.options.unlock_type == self.options.unlock_type.option_tree:
-                region = regions.setdefault(details["parent_id"], Region(details["parent_id"], self.player, self.multiworld))
+                if details["parent_id"] != None:
+                    region = regions.setdefault(
+                        details["parent_id"], 
+                        Region(details["parent_id"], self.player, self.multiworld)
+                    )
 
             if (self.options.check_difficulty == CheckDifficulty.option_normal and details["type"] == "task") or \
-                    (self.options.check_difficulty == CheckDifficulty.option_goal and details["type"] != "chellenge"):
+                    (self.options.check_difficulty == CheckDifficulty.option_goal and details["type"] != "challenge") or \
+                        self.options.check_difficulty == CheckDifficulty.option_challenge:
                 # task on normal, task+goal on goal, everything on challenge
                 location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
                 region.locations.append(location)
 
         for region in regions.values():
-            menu.connect(region, f"menu -> {region.name}", lambda state, name=region.name: state.has(name, self.player))
+            if self.options.unlock_type == self.options.unlock_type.option_tab:
+                menu.connect(
+                    region, 
+                    f"menu -> {region.name}", 
+                    lambda state, name=region.name: state.has(name, self.player)
+                )
+            elif self.options.unlock_type == self.options.unlock_type.option_tree:
+                # connect regions sequentially
+                if self.get_parent_id(region.name) == None:
+                    menu.connect(
+                        region, 
+                        f"menu -> {region.name}", 
+                        lambda state, name=region.name: state.has(name, self.player)
+                    )
+                else:
+                    # menu.connect(region, f"menu -> {region.name}", lambda state, name=region.name: state.has(name, self.player))
+                    parent_region = regions[self.get_parent_id(region.name)]
+                    parent_region.connect(
+                        region, 
+                        f"{parent_region.name} -> {region.name}", 
+                        lambda state, name=region.name: state.has(name, self.player)
+                    )
         
         self.multiworld.regions += [i for i in regions.values()]  + [menu]
 
@@ -128,11 +162,10 @@ class ModdedMinecraftWorld(World):
         return slot_data
 
     def set_rules(self) -> None:
-        # self.multiworld.completion_condition[self.player] = lambda state: state.has("Victory", self.player)
         if self.options.unlock_type == self.options.unlock_type.option_tab:
             goal = self.get_root(self.options.final_goal.current_key)
         elif self.options.unlock_type == self.options.unlock_type.option_tree:
-            goal = self.options.checks[self.options.final_goal.current_key]["parent_id"] or self.options.final_goal.current_key
+            goal = self.get_parent_id(self.options.final_goal.current_key) or self.options.final_goal.current_key
         
         self.multiworld.completion_condition[self.player] = lambda state, goal=goal: state.has(goal, self.player)
     
@@ -140,11 +173,12 @@ class ModdedMinecraftWorld(World):
         return ModdedMinecraftItem(name, classification, self.location_name_to_id[name], self.player)
     
     def get_root(self, item: str) -> str:
-        if self.options.checks[item]["parent_id"] == None:
+        if self.get_parent_id(item) == None:
             return item
         try:
-            return self.get_root(self.options.checks[item]["parent_id"])
+            return self.get_root(self.get_parent_id(item))
         except KeyError:
-            # this is probably a recipe?
-            # I think it's kinda interesting, might try to do something disallowing recipes? re -> ":recipes/" 
             return item
+
+    def get_parent_id(self, item: str) -> str|None:
+        return self.options.checks[item]["parent_id"]
