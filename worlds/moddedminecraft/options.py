@@ -1,37 +1,63 @@
 from dataclasses import dataclass
-from Options import OptionDict, PerGameCommonOptions, Choice, TextChoice, DeathLink, StartInventory, OptionGroup, Visibility
+
+from Options import (
+    Choice,
+    DeathLink,
+    OptionDict,
+    OptionGroup,
+    OptionList,
+    PerGameCommonOptions,
+    StartInventory,
+    TextChoice,
+    Visibility,
+)
+
 
 class Checks(OptionDict):
     """
-    Advancements in the game.
+    Advancements and quests from the game.
     """
+    # don't show in spoiler log, because this is large as hell
     visibility = Visibility.simple_ui | Visibility.complex_ui | Visibility.template
-
-class CheckDifficulty(Choice):
-    """
-    Sets what types of minecraft advancements are randomized.
-    goals and challenges are additive.
-    choosing challenges can add long and/or difficult checks such as How did we get here or adventure time.
-    """
-    display_name = "Advancement Difficulty"
-    option_normal = 0
-    option_goal = 1
-    option_challenge = 2
-    alias_easy = option_normal
-    alias_normal = option_goal
-    alias_hard = option_challenge
-    default = option_goal
 
 class FinalGoal(TextChoice):
     """
     The Goal of the Randomizer.
-    Use a custom advancement by using it's resource name ie. "minecraft:adventure/adventuring_time"
+    Use a custom advancement by using it's resource name ie. "adv minecraft:adventure/adventuring_time"
+    Format: "<type> <advancement_name|quest_name>"
+    Type one of [adv, ftb]
     """
     display_name = "End Goal"
-    option_ender_dragon = "minecraft:end/kill_dragon"
-    option_wither = "minecraft:nether/summon_wither"
+    option_ender_dragon = "adv minecraft:end/kill_dragon"
+    option_wither = "adv minecraft:nether/summon_wither"
     default = option_ender_dragon
 
+class ActivatedModules(OptionList):
+    """
+    Sets which modules are activated.
+    valid options are ["Advancements", "FTBQuests"]
+    """
+    display_name = "Activated Modules"
+    default = ("Advancements", "FTBQuests")
+
+class AdvancementCheckDifficulty(OptionList):
+    """
+    Sets what types of minecraft advancements that will be locations and considered for logic.
+    valid options for base Minecraft are ["task", "goal", "challenge"]
+    """
+    display_name = "Advancement Difficulty"
+    default = ("task", "goal")
+
+class FTBQuestCheckShape(OptionList):
+    """
+    Shapes of FTB quests that will be locations and considered for logic.
+    valid options for base FTB Quests are ["circle", "square", "rsquare", "diamond", "pentagon", "hexagon", "octagon", "heart", "gear", "none"]
+    """
+    # ftbquests-extra-quest-shapes adds other shapes
+    # ["fpstar", "epstar", "banner", "embellish", "sign", "thought", "window", "spstar"]
+    # should probably either mention this or make it an exclude list
+    display_name = "FTB Quest Shapes"
+    default = ("circle", "square", "rsquare", "diamond", "pentagon", "hexagon", "octagon", "heart", "gear", "none")
 
 class UnlockType(Choice):
     """
@@ -42,10 +68,21 @@ class UnlockType(Choice):
     option_tree = "tree"
     default = option_tab
 
+class FillerItems(OptionList):
+    """
+    Items to use as filler.
+    Items must be in format "<amount> <item_name>" Example: "1 minecraft:iron_ingot"
+    """
+    display_name = "Filler Items"
+    default = ("1 minecraft:iron_ingot",)
+
 class ModdedMinecraftStartInventory(StartInventory):
     """
-    Start with the specified amount of these items. Example: '"minecraft:story/root": 1'
+    Start with the specified amount of these items. Example: '"adv minecraft:story/root": 1'
+    Format: "<type> <item_name>": 1
+    Type one of [adv, ftb, item]
     """
+    # mostly here to disable verification as values are often not in location_name_to_id
     verify_item_name = False
 
 OPTION_GROUPS = [
@@ -59,10 +96,14 @@ OPTION_GROUPS = [
 
 @dataclass
 class ModdedMinecraftOptions(PerGameCommonOptions):
-    checks: Checks
-    check_difficulty: CheckDifficulty
+    advancement_check_difficulty: AdvancementCheckDifficulty
+    activated_modules: ActivatedModules
+    ftb_quest_check_shape: FTBQuestCheckShape
     unlock_type: UnlockType
     final_goal: FinalGoal
+    filler_items: FillerItems
     death_link: DeathLink
+
+    checks: Checks
 
     start_inventory: ModdedMinecraftStartInventory
