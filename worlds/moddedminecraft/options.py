@@ -25,7 +25,7 @@ class FinalGoal(TextChoice):
     The Goal of the Randomizer.
     Use a custom advancement by using it's resource name ie. "adv minecraft:adventure/adventuring_time"
     Format: "<type> <advancement_name|quest_name>"
-    Type one of [adv, ftb]
+    type = one of [adv, ftb]
     """
     display_name = "End Goal"
     option_ender_dragon = "adv minecraft:end/kill_dragon"
@@ -37,6 +37,7 @@ class ActivatedModules(OptionList):
     Sets which modules are activated.
     valid options are ["Advancements", "FTBQuests"]
     """
+    # TODO: should I make this into multiple toggles?
     display_name = "Activated Modules"
     default = ("Advancements", "FTBQuests")
 
@@ -66,7 +67,7 @@ class UnlockType(Choice):
     display_name = "unlock type"
     option_tab = "tab"
     option_tree = "tree"
-    default = option_tab
+    default = option_tree
 
 class FillerItems(OptionList):
     """

@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 
@@ -18,7 +19,7 @@ class ModdedMinecraftItem(Item):
 
 
 class ModdedMinecraftWebWorld(WebWorld):
-    tutorials = [
+    tutorials = (
         Tutorial(
             "Multiworld Setup Guide",
             "A guide for setting up the Modded Minecraft randomizer connected to Archipelago",
@@ -26,8 +27,8 @@ class ModdedMinecraftWebWorld(WebWorld):
             "setup_en.md",
             "setup/en",
             ["Stuff691734"],
-        )
-    ]
+        ),
+    )
     option_groups = OPTION_GROUPS
 
 
@@ -42,6 +43,9 @@ class ModdedMinecraftWorld(World):
     location_name_to_id = location_name_to_id
 
     web = ModdedMinecraftWebWorld()
+
+    filtered_advancements: dict[str:dict] = {}
+    filtered_ftb_quests: dict[str:dict] = {}
 
     def generate_early(self) -> None:
         # get data from checks file
@@ -64,8 +68,6 @@ class ModdedMinecraftWorld(World):
 
         for advancement, parent in self.options.checks["Advancements"].items():
             add_item(f"adv {advancement}", checks)
-            # needed since sometimes dependencies don't always have displays
-            # therefore aren't picked up by the generator
             add_item(f"adv {parent['parent_id'][0]}", checks)
 
 
@@ -83,6 +85,58 @@ class ModdedMinecraftWorld(World):
         self.item_name_to_id = checks
         self.location_name_to_id = checks
 
+        # =========================================================================================
+
+        # create dicts with values we need instead of using all values
+        # also makes later logic easier as dependencies are already considered here
+        # TODO: why loop through each list multiple times
+        # =========================================================================================
+
+        if "Advancements" in self.options.activated_modules:
+            for advancement, details in self.options.checks["Advancements"].items():
+                if self.valid_check_difficulty(details["type"], "Advancements"):
+                    self.filtered_advancements[advancement] = details
+                    parent_advancement = details["parent_id"][0]
+                    while parent_advancement is not None:
+                        try:
+                            parent_details = self.options.checks["Advancements"][parent_advancement]
+                        except KeyError:
+                            parent_details = {"type": None, "parent_id": [None]}
+                        self.filtered_advancements[parent_advancement] = parent_details
+                        parent_advancement = parent_details["parent_id"][0]
+
+
+        def recursively_add_quests(quest: str):
+            # no longer care if it is a valid check difficulty, just need to make sure it has a path to it
+            self.filtered_ftb_quests.setdefault(quest, self.options.checks["FTBQuests"][quest])
+            for parent_id in self.options.checks["FTBQuests"][quest]["parent_id"]:
+                recursively_add_quests(parent_id)
+        if "FTBQuests" in self.options.activated_modules:
+            for quest, details in self.options.checks["FTBQuests"].items():
+                if self.valid_check_difficulty(details["type"], "FTBQuests"):
+                    recursively_add_quests(quest)
+
+
+        # =========================================================================================
+        # ensure end goal is in filtered advancements and/or quests
+        # =========================================================================================
+        goal_type, goal_name = self.options.final_goal.current_key.split(maxsplit=1)
+        if goal_type == "adv":
+            # same logic as above just changed to start at the goal
+            self.filtered_advancements[goal_name] = self.options.checks["Advancements"][goal_name]
+            parent_advancement = self.options.checks["Advancements"][goal_name]["parent_id"][0]
+            while parent_advancement is not None:
+                try:
+                    parent_details = self.options.checks["Advancements"][parent_advancement]
+                except KeyError:
+                    parent_details = {"type": None, "parent_id": [None]}
+                self.filtered_advancements[parent_advancement] = parent_details
+                parent_advancement = parent_details["parent_id"][0]
+        elif goal_type == "ftb":
+            recursively_add_quests(goal_name)
+
+
+
 
     def create_filler(self):
         return self.create_item(f"item {self.get_filler_item_name()}", ItemClassification.filler)
@@ -92,59 +146,44 @@ class ModdedMinecraftWorld(World):
 
     def create_items(self) -> None:
         total_locations = len(self.multiworld.get_unfilled_locations(self.player))
+
         item_pool = []
         if self.options.unlock_type == UnlockType.option_tab:
             # Advancements Tab Mode
-            if "Advancements" in self.options.activated_modules:
-                root_items: dict[str: ModdedMinecraftItem] = {}
-                for name in self.options.checks["Advancements"]:
-                    root_items.setdefault(
-                        self.get_advancement_root(name),
-                        self.create_item(f"adv {self.get_advancement_root(name)}")
-                    )
-                item_pool += list(root_items.values())
+            items: dict[str: ModdedMinecraftItem] = {}
+            for name in self.filtered_advancements:
+                items.setdefault(
+                    self.get_advancement_root(name),
+                    self.create_item(f"adv {self.get_advancement_root(name)}")
+                )
+            item_pool += list(items.values())
             # FTB Quests Tab Mode
-            if "FTBQuests" in self.options.activated_modules:
-                items: dict[str:ModdedMinecraftItem] = {}
-                for details in self.options.checks["FTBQuests"].values():
-                    items.setdefault(details["chapter"], self.create_item(f"ftb {details['chapter']}"))
-                item_pool += list(items.values())
+            items: dict[str:ModdedMinecraftItem] = {}
+            for details in self.filtered_ftb_quests.values():
+                items.setdefault(details["chapter"], self.create_item(f"ftb {details['chapter']}"))
+            item_pool += list(items.values())
 
         elif self.options.unlock_type == self.options.unlock_type.option_tree:
             # Advancements Tree Mode
-            if "Advancements" in self.options.activated_modules:
-                items: dict[str:ModdedMinecraftItem] = {}
-                for check, details in self.options.checks["Advancements"].items():
-                    if self.valid_check_difficulty(details["type"], "Advancements"):
-                        parent_id = self.get_advancement_parent_id(check)
-                        if parent_id is not None:
-                            items.setdefault(parent_id, self.create_item(f"adv {parent_id}"))
-                        else:
-                            # this is really only nescessary if there is a root advancement with no dependencies
-                            # extradisks I am looking at you
-                            items.setdefault(check, self.create_item(f"adv {check}"))
-                item_list = list(items)
-                for item in item_list:
-                    dependency = self.get_advancement_parent_id(item)
-                    while dependency is not None and items.get(dependency) is None:
-                        # dependency exists but isn't in the list of items yet
-                        item_list.append(dependency)
-                        items.setdefault(dependency, self.create_item(f"adv {dependency}"))
-                        dependency = self.get_advancement_parent_id(item)
-                item_pool += list(items.values())
+            items: dict[str:ModdedMinecraftItem] = {}
+            for check, details in self.filtered_advancements.items():
+                parent_id = details["parent_id"][0]
+                item_name = check if parent_id is None else parent_id
+
+                items.setdefault(item_name, self.create_item(f"adv {item_name}"))
+            item_pool += list(items.values())
 
             # FTB Quests Tree Mode
-            if "FTBQuests" in self.options.activated_modules:
-                items: dict[str:ModdedMinecraftItem] = {}
-                for check, details in self.options.checks["FTBQuests"].items():
-                    if self.valid_check_difficulty(details["type"], "FTBQuests"):
-                        items.setdefault(check, self.create_item(f"ftb {check}"))
-                for item in items:
-                    self.add_ftb_quest_items(item, items)
-                item_pool += list(items.values())
+            items: dict[str:ModdedMinecraftItem] = {}
+            for check, details in self.filtered_ftb_quests.items():
+                if details["parent_id"] == []:
+                    items.setdefault(check, self.create_item(f"ftb {check}"))
+                else:
+                    for parent_id in details["parent_id"]:
+                        items.setdefault(parent_id, self.create_item(f"ftb {parent_id}"))
+            item_pool += list(items.values())
 
-        for _ in range(total_locations - len(item_pool)):
-            item_pool.append(self.create_filler())
+        item_pool += [self.create_filler() for _ in range(total_locations - len(item_pool))]
 
         self.multiworld.itempool += item_pool
 
@@ -154,119 +193,146 @@ class ModdedMinecraftWorld(World):
         regions = []
         if self.options.unlock_type == UnlockType.option_tab:
             # Advancement Tab Mode
-            if "Advancements" in self.options.activated_modules:
-                advancement_regions: dict[str:Region] = {}
-                for check, details in self.options.checks["Advancements"].items():
-                    if self.valid_check_difficulty(details["type"], "Advancements"):
-                        name = f"adv {check}"
-                        region = advancement_regions.setdefault(
-                            self.get_advancement_root(check),
-                            Region(self.get_advancement_root(check), self.player, self.multiworld),
-                        )
-                        location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
-                        region.locations.append(location)
-                for region in advancement_regions.values():
-                    menu.connect(
-                        region,
-                        f"menu -> {region.name}",
-                        lambda state, name=region.name: state.has(f"adv {name}", self.player)
-                    )
-                regions += list(advancement_regions.values())
+            advancement_regions: dict[str:Region] = {}
+            for check in self.filtered_advancements:
+                # if self.valid_check_difficulty(details["type"], "Advancements"):
+                name = f"adv {check}"
+                region = advancement_regions.setdefault(
+                    self.get_advancement_root(check),
+                    Region(self.get_advancement_root(check), self.player, self.multiworld),
+                )
+                location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
+                region.locations.append(location)
+            for region in advancement_regions.values():
+                menu.connect(
+                    region,
+                    f"menu -> {region.name}",
+                    lambda state, name=region.name: state.has(f"adv {name}", self.player)
+                )
+            regions += list(advancement_regions.values())
 
             # FTB Quests Tab Mode
-            if "FTBQuests" in self.options.activated_modules:
-                quest_regions: dict[str:Region] = {}
-                for check, details in self.options.checks["FTBQuests"].items():
-                    if self.valid_check_difficulty(details["type"], "FTBQuests"):
-                        region = quest_regions.setdefault(
-                            details["chapter"], Region(details["chapter"], self.player, self.multiworld)
-                        )
-                        name = f"ftb {check}"
-                        location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
-                        region.locations.append(location)
-                # using tab unlock type we just connect everything to menu
-                # with a condition of having the "base" item/check found
-                for region in quest_regions.values():
-                    if self.options.unlock_type == UnlockType.option_tab:
-                        menu.connect(
-                            region,
-                            f"menu -> {region.name}",
-                            lambda state, name=region.name: state.has(f"ftb {name}", self.player)
-                        )
-                regions += list(quest_regions.values())
+            quest_regions: dict[str:Region] = {}
+            for check, details in self.filtered_ftb_quests.items():
+                # if self.valid_check_difficulty(details["type"], "FTBQuests"):
+                region = quest_regions.setdefault(
+                    details["chapter"], Region(details["chapter"], self.player, self.multiworld)
+                )
+                name = f"ftb {check}"
+                location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
+                region.locations.append(location)
+
+            # TODO: make this one loop
+            # with a condition of having the "base" item/check found
+            for region in quest_regions.values():
+                menu.connect(
+                    region,
+                    f"menu -> {region.name}",
+                    lambda state, name=region.name: state.has(f"ftb {name}", self.player)
+                )
+            regions += list(quest_regions.values())
 
         elif self.options.unlock_type == self.options.unlock_type.option_tree:
             # Advancements Tree Mode
-            if "Advancements" in self.options.activated_modules:
-                advancement_regions: dict[str:Region] = {}
-                for check, details in self.options.checks["Advancements"].items():
-                    parent_id = self.get_advancement_parent_id(check)
-                    name = f"adv {check}"
-                    if self.valid_check_difficulty(details["type"], "Advancements") and parent_id is not None:
-                        region = advancement_regions.setdefault(
-                            parent_id,
-                            Region(parent_id, self.player, self.multiworld),
+            advancement_regions: dict[str:Region] = {}
+            for check, details in self.filtered_advancements.items():
+                parent_id = details["parent_id"][0]
+                name = f"adv {check}"
+                advancement_id = parent_id if parent_id is not None else check
+
+                region = advancement_regions.setdefault(
+                    advancement_id,
+                    Region(advancement_id, self.player, self.multiworld),
+                )
+                location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
+                region.locations.append(location)
+            for region in advancement_regions.values():
+                # base of advancement tree
+                parent_id = self.get_advancement_parent_id(region.name)
+                if parent_id is None:
+                    menu.connect(
+                        region,
+                        f"menu -> {region.name}",
+                        lambda state, name=region.name: state.has(f"adv {name}", self.player),
+                    )
+                else:
+                    parent_region = advancement_regions[parent_id]
+                    parent_region.connect(
+                        region,
+                        f"{parent_region.name} -> {region.name}",
+                        lambda state, name=region.name: state.has(f"adv {name}", self.player),
+                    )
+            regions += list(advancement_regions.values())
+            # FTB Quests Tree Mode
+            quest_regions: dict[str:Region] = {}
+            for check in self.filtered_ftb_quests:
+                region = quest_regions.setdefault(
+                    check, Region(check, self.player, self.multiworld)
+                )
+                name = f"ftb {check}"
+                location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
+                region.locations.append(location)
+
+            condition = {
+                "all_completed": lambda parents, state: state.has_all(parents, self.player),
+                "one_completed": lambda parents, state: state.has_any(parents, self.player),
+                "all_started": lambda parents, state: state.has_all(parents, self.player),
+                "one_started": lambda parents, state: state.has_any(parents, self.player)
+            }
+
+            for region in quest_regions.values():
+                parent_ids = self.get_ftb_quest_parent_id(region.name)
+
+                if parent_ids == []:
+                    menu.connect(
+                        region,
+                        f"menu -> {region.name}",
+                        lambda state, name=region.name: state.has(f"ftb {name}", self.player),
+                    )
+                else:
+                    dependent_type = self.options.checks["FTBQuests"][region.name]["dependant_type"]
+
+                    connection_conditions = functools.partial(
+                        condition[dependent_type],
+                        [f"ftb {parent_id}" for parent_id in parent_ids] # TODO: why can this not be a generator
+                    )
+
+                    if len(parent_ids) >= 2 and dependent_type in ["all_completed", "all_started"]:
+                        # connection_conditions = lambda parents, state: state.has_all(parents, self.player)
+                        def region_condition(base_condition, regions, state) -> bool:
+                            return base_condition(state) and all(
+                                state.can_reach_region(region, self.player) for region in regions
+                            )
+
+                        connection_conditions = functools.partial(
+                            region_condition,
+                            connection_conditions,
+                            parent_ids
                         )
-                        location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
-                        region.locations.append(location)
-                    elif self.valid_check_difficulty(details["type"], "Advancements") and parent_id is None:
-                        region = advancement_regions.setdefault(
-                            check,
-                            Region(check, self.player, self.multiworld),
-                        )
-                        location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
-                        region.locations.append(location)
-                for region in advancement_regions.values():
-                    # base of advancement tree
-                    if self.get_advancement_parent_id(region.name) is None:
-                        menu.connect(
-                            region,
-                            f"menu -> {region.name}",
-                            lambda state, name=region.name: state.has(f"adv {name}", self.player),
-                        )
+                        entrances = []
+                        regions_to_connect = []
+
+                        for parent_id in parent_ids:
+                            parent_region = quest_regions.get(parent_id)
+                            regions_to_connect.append(parent_region)
+                            entrances.append(parent_region.connect(
+                                region,
+                                f"{parent_region.name} -> {region.name}",
+                                connection_conditions
+                            ))
+                        for entrance in entrances:
+                            for region_to_conncet in regions_to_connect:
+                                self.multiworld.register_indirect_condition(region_to_conncet, entrance)
                     else:
-                        parent_region = advancement_regions.get(self.get_advancement_parent_id(region.name))
-                        if parent_region is None:
-                            # can't find next up tree, presumably a difficulty that is not included
-                            # we need to create these as not being there would leave checks inaccesible.
-                            old_region = region
-                            while parent_region is not None:
-                                parent_region = advancement_regions.setdefault(
-                                    Region(
-                                        self.get_advancement_parent_id(old_region.name), self.player, self.multiworld
-                                    )
-                                )
-                                parent_region.connect(
-                                    old_region,
-                                    f"{parent_region.name} -> {old_region.name}",
-                                    lambda state, name=old_region.name: state.has(f"adv {name}", self.player),
-                                )
-                                old_region = parent_region
-                                parent_region = advancement_regions.get(self.get_advancement_parent_id(old_region.name))
-                        else:
+                        for parent_id in parent_ids:
+                            parent_region = quest_regions.get(parent_id)
                             parent_region.connect(
                                 region,
                                 f"{parent_region.name} -> {region.name}",
-                                lambda state, name=region.name: state.has(f"adv {name}", self.player),
+                                connection_conditions
                             )
-                regions += list(advancement_regions.values())
-            # FTB Quests Tree Mode
-            if "FTBQuests" in self.options.activated_modules:
-                quest_regions: dict[str:Region] = {}
-                for check, details in self.options.checks["FTBQuests"].items():
-                    if self.valid_check_difficulty(details["type"], "FTBQuests"):
-                        region = quest_regions.setdefault(
-                            check, Region(check, self.player, self.multiworld)
-                        )
-                        name = f"ftb {check}"
-                        location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
-                        region.locations.append(location)
 
-                # logically connect back to the base
-                for region in quest_regions.values():
-                    self.connect_ftb_quests_parent_region(quest_regions, region, menu)
-
-                regions += list(quest_regions.values())
+            regions += list(quest_regions.values())
         # all region generation finished add to multiworld regions
         self.multiworld.regions += [*regions, menu]
 
@@ -286,20 +352,46 @@ class ModdedMinecraftWorld(World):
         return options
 
     def set_rules(self) -> None:
-        goal = None
         goal_type, goal_name = self.options.final_goal.current_key.split(maxsplit=1)
         if self.options.unlock_type == UnlockType.option_tab:
             if goal_type == "adv":
                 goal = f"adv {self.get_advancement_root(goal_name)}"
+                self.multiworld.completion_condition[self.player] = (
+                    lambda state: state.has(goal, self.player) and
+                    state.can_reach_region(self.get_advancement_root(goal_name), self.player)
+                )
             elif goal_type == "ftb":
                 goal = f"ftb {self.get_ftb_quest_chapter(goal_name)}"
+                self.multiworld.completion_condition[self.player] = (
+                    lambda state: state.has(goal, self.player) and
+                    state.can_reach_region(self.get_ftb_quest_chapter(goal_name), self.player)
+                )
         elif self.options.unlock_type == self.options.unlock_type.option_tree:
             if goal_type == "adv":
-                goal = f"adv {self.get_advancement_parent_id(goal_name) or goal_name}"
+                goal_name = self.get_advancement_parent_id(goal_name) or goal_name
+                goal = f"adv {goal_name}"
+                self.multiworld.completion_condition[self.player] = (
+                    lambda state: state.has(goal, self.player) and
+                    state.can_reach_region(goal_name, self.player)
+                )
             elif goal_type == "ftb":
-                goal = f"ftb {self.get_ftb_quest_parent_id(goal_name)}"
-        if goal is not None:
-            self.multiworld.completion_condition[self.player] = lambda state, goal=goal: state.has(goal, self.player)
+                details = self.filtered_ftb_quests[goal_name]
+                parent_ids = [f"ftb {parent_id}" for parent_id in details["parent_id"]]
+                condition = {
+                    "all_completed": lambda state: state.has_all(parent_ids, self.player) and all(
+                        state.can_reach_region(region, self.player) for region in details["parent_id"]
+                    ),
+                    "one_completed": lambda state: state.has_any(parent_ids, self.player) and any(
+                        state.can_reach_region(region, self.player) for region in details["parent_id"]
+                    ),
+                    "all_started": lambda state: state.has_all(parent_ids, self.player) and all(
+                        state.can_reach_region(region, self.player) for region in details["parent_id"]
+                    ),
+                    "one_started": lambda state: state.has_any(parent_ids, self.player) and any(
+                        state.can_reach_region(region, self.player) for region in details["parent_id"]
+                    )
+                }
+                self.multiworld.completion_condition[self.player] = condition[details["dependant_type"]]
 
     def create_item(
         self,
@@ -328,51 +420,6 @@ class ModdedMinecraftWorld(World):
 
     def get_ftb_quest_parent_id(self, item: str) -> list[str]:
         return self.options.checks["FTBQuests"][item]["parent_id"]
-
-    def connect_ftb_quests_parent_region(self, regions: dict[str:Region], region: Region, menu: Region):
-        parent_ids = self.get_ftb_quest_parent_id(region.name)
-        if parent_ids == []:
-            menu.connect(
-                region,
-                f"menu -> {region.name}",
-                lambda state, name=region.name: state.has(f"ftb {name}", self.player),
-            )
-        dependencies = [f"ftb {parent_id}" for parent_id in parent_ids]
-        for parent_region_name in parent_ids:
-            condition = {
-                "all_completed":lambda state, name=region.name: state.has_all(dependencies, self.player),
-                "one_completed":lambda state, name=region.name: state.has_any(dependencies, self.player),
-                "all_started":lambda state, name=region.name: state.has_all(dependencies, self.player),
-                "one_started":lambda state, name=region.name: state.has_any(dependencies, self.player)
-            }
-
-            parent_region = regions.get(parent_region_name)
-            if parent_region is None:
-                # dependency doesn't exist
-                parent_region = regions.setdefault(
-                    parent_region_name,
-                    Region(parent_region_name, self.player, self.multiworld)
-                )
-                parent_region.connect(
-                    region,
-                    f"{parent_region.name} -> {region.name}",
-                    condition[self.options.checks["FTBQuests"][region.name]["dependant_type"]]
-                )
-
-                self.connect_ftb_quests_parent_region(regions, parent_region, menu)
-
-            else:
-                # dependency already exists, simple
-                parent_region.connect(
-                    region,
-                    f"{parent_region.name} -> {region.name}",
-                    condition[self.options.checks["FTBQuests"][region.name]["dependant_type"]]
-                )
-    def add_ftb_quest_items(self, item: str, items: dict[str:Item]):
-        if items.get(item) is None:
-            items.setdefault(item, self.create_item(f"ftb {item}"))
-            for dependency in self.get_ftb_quest_parent_id(item):
-                self.add_ftb_quest_items(dependency, items)
 
     def valid_check_difficulty(self, check_difficulty: str, check_type: str) -> bool:
         if check_type == "Advancements":
