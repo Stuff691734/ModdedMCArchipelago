@@ -154,14 +154,22 @@ class ModdedMinecraftWorld(World):
                     self.get_advancement_root(name),
                     self.create_item(f"adv {self.get_advancement_root(name)}")
                 )
+
+            if self.options.advancement_checks_give_items:
+                for item in self.filtered_advancements:
+                    items.setdefault(item, self.create_item(f"adv {item}", ItemClassification.filler))
+
             item_pool += list(items.values())
             # FTB Quests Tab Mode
             items: dict[str:ModdedMinecraftItem] = {}
             for details in self.filtered_ftb_quests.values():
                 items.setdefault(details["chapter"], self.create_item(f"ftb {details['chapter']}"))
-            for item in self.filtered_ftb_quests:
-                # reward randomization, TODO: may over-fill items
-                items.setdefault(item, self.create_item(f"ftb {item}", ItemClassification.filler))
+
+            if self.options.quest_checks_give_rewards:
+                for item in self.filtered_ftb_quests:
+                    # reward randomization, TODO: may over-fill items
+                    items.setdefault(item, self.create_item(f"ftb {item}", ItemClassification.filler))
+
             item_pool += list(items.values())
 
         elif self.options.unlock_type == self.options.unlock_type.option_tree:
@@ -172,6 +180,11 @@ class ModdedMinecraftWorld(World):
                 item_name = check if parent_id is None else parent_id
 
                 items.setdefault(item_name, self.create_item(f"adv {item_name}"))
+
+            if self.options.advancement_checks_give_items:
+                for item in self.filtered_advancements:
+                    items.setdefault(item, self.create_item(f"adv {item}", ItemClassification.filler))
+
             item_pool += list(items.values())
 
             # FTB Quests Tree Mode
@@ -182,9 +195,12 @@ class ModdedMinecraftWorld(World):
                 else:
                     for parent_id in details["parent_id"]:
                         items.setdefault(parent_id, self.create_item(f"ftb {parent_id}"))
-            for item in self.filtered_ftb_quests:
-                # reward randomization, should always have enough space
-                items.setdefault(item, self.create_item(f"ftb {item}", ItemClassification.filler))
+
+            if self.options.quest_checks_give_rewards:
+                for item in self.filtered_ftb_quests:
+                    # reward randomization, should always have enough space
+                    items.setdefault(item, self.create_item(f"ftb {item}", ItemClassification.filler))
+
             item_pool += list(items.values())
 
         item_pool += [self.create_filler() for _ in range(total_locations - len(item_pool))]
@@ -372,7 +388,9 @@ class ModdedMinecraftWorld(World):
             "death_link",
             "activated_modules",
             "advancement_check_difficulty",
-            "ftb_quest_check_shape"
+            "ftb_quest_check_shape",
+            "advancement_checks_give_items",
+            "quest_checks_give_rewards"
         )
         options["activated_modules"] = "|".join(options["activated_modules"])
         options["advancement_check_difficulty"] = "|".join(options["advancement_check_difficulty"])

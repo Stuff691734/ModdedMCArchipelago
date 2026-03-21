@@ -10,6 +10,7 @@ from Options import (
     StartInventory,
     TextChoice,
     Visibility,
+    DefaultOnToggle
 )
 
 
@@ -86,6 +87,16 @@ class ModdedMinecraftStartInventory(StartInventory):
     # mostly here to disable verification as values are often not in location_name_to_id
     verify_item_name = False
 
+class AdvancementChecksGiveItems(DefaultOnToggle):
+    """
+    Whether to give the item shown in the advancement icon when getting an advancement check.
+    """
+
+class QuestChecksGiveQuestRewards(DefaultOnToggle):
+    """
+    Whether to give quest rewards when getting an ftb quests check.
+    """
+
 OPTION_GROUPS = [
     OptionGroup(
         "Item & Location Options", [
@@ -102,6 +113,8 @@ class ModdedMinecraftOptions(PerGameCommonOptions):
     ftb_quest_check_shape: FTBQuestCheckShape
     unlock_type: UnlockType
     final_goal: FinalGoal
+    advancement_checks_give_items: AdvancementChecksGiveItems
+    quest_checks_give_rewards: QuestChecksGiveQuestRewards
     filler_items: FillerItems
     death_link: DeathLink
 
