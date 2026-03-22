@@ -90,23 +90,28 @@ class ModdedMinecraftWorld(World):
         # TODO: why loop through each list multiple times
         # =========================================================================================
 
+        def recursively_add_advancements(advancement: str):
+            try:
+                details = self.options.checks["Advancements"][advancement]
+            except KeyError:
+                details = {"type": None, "parent_id": [None]}
+            self.filtered_advancements.setdefault(advancement, details)
+            parent_advancement = details["parent_id"][0]
+            if parent_advancement is not None:
+                recursively_add_advancements(parent_advancement)
+
         if "Advancements" in self.options.activated_modules:
             for advancement, details in self.options.checks["Advancements"].items():
                 if self.valid_check_difficulty(details["type"], "Advancements"):
-                    self.filtered_advancements[advancement] = details
-                    parent_advancement = details["parent_id"][0]
-                    while parent_advancement is not None:
-                        try:
-                            parent_details = self.options.checks["Advancements"][parent_advancement]
-                        except KeyError:
-                            parent_details = {"type": None, "parent_id": [None]}
-                        self.filtered_advancements[parent_advancement] = parent_details
-                        parent_advancement = parent_details["parent_id"][0]
+                    recursively_add_advancements(advancement)
 
 
         def recursively_add_quests(quest: str):
             # no longer care if it is a valid check difficulty, just need to make sure it has a path to it
             self.filtered_ftb_quests.setdefault(quest, self.options.checks["FTBQuests"][quest])
+            for advancement_id in self.options.checks["FTBQuests"][quest]["advancement_dependencies"]:
+                recursively_add_advancements(advancement_id)
+
             for parent_id in self.options.checks["FTBQuests"][quest]["parent_id"]:
                 recursively_add_quests(parent_id)
         if "FTBQuests" in self.options.activated_modules:
