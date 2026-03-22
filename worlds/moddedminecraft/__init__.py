@@ -145,12 +145,16 @@ class ModdedMinecraftWorld(World):
         return self.create_item(f"item {self.get_filler_item_name()}", ItemClassification.filler)
 
     def get_filler_item_name(self) -> str:
-        return self.random.choice(list(self.options.filler_items))
+        return self.random.choices(
+            list(self.options.filler_items.keys()),
+            list(self.options.filler_items.values())
+        )[0]
 
     def create_items(self) -> None:
         total_locations = len(self.multiworld.get_unfilled_locations(self.player))
 
         item_pool = []
+        filler_items = []
         if self.options.unlock_type == UnlockType.option_tab:
             # Advancements Tab Mode
             items: dict[str: ModdedMinecraftItem] = {}
@@ -162,7 +166,8 @@ class ModdedMinecraftWorld(World):
 
             if self.options.advancement_checks_give_items:
                 for item in self.filtered_advancements:
-                    items.setdefault(item, self.create_item(f"adv {item}", ItemClassification.filler))
+                    if items.get(item) is None:
+                        filler_items.append(self.create_item(f"adv {item}", ItemClassification.filler))
 
             item_pool += list(items.values())
             # FTB Quests Tab Mode
@@ -172,8 +177,8 @@ class ModdedMinecraftWorld(World):
 
             if self.options.quest_checks_give_rewards:
                 for item in self.filtered_ftb_quests:
-                    # reward randomization, TODO: may over-fill items
-                    items.setdefault(item, self.create_item(f"ftb {item}", ItemClassification.filler))
+                    if items.get(item) is None:
+                        filler_items.append(self.create_item(f"ftb {item}", ItemClassification.filler))
 
             item_pool += list(items.values())
 
@@ -188,7 +193,8 @@ class ModdedMinecraftWorld(World):
 
             if self.options.advancement_checks_give_items:
                 for item in self.filtered_advancements:
-                    items.setdefault(item, self.create_item(f"adv {item}", ItemClassification.filler))
+                    if items.get(item) is None:
+                        filler_items.append(self.create_item(f"adv {item}", ItemClassification.filler))
 
             item_pool += list(items.values())
 
@@ -204,9 +210,13 @@ class ModdedMinecraftWorld(World):
             if self.options.quest_checks_give_rewards:
                 for item in self.filtered_ftb_quests:
                     # reward randomization, should always have enough space
-                    items.setdefault(item, self.create_item(f"ftb {item}", ItemClassification.filler))
+                    if items.get(item) is None:
+                        filler_items.append(self.create_item(f"ftb {item}", ItemClassification.filler))
 
             item_pool += list(items.values())
+            if total_locations - len(item_pool) > 0:
+                # avoid overfilling filler items
+                item_pool += self.random.sample(filler_items, min(len(filler_items), total_locations - len(item_pool)))
 
         item_pool += [self.create_filler() for _ in range(total_locations - len(item_pool))]
 
@@ -219,15 +229,18 @@ class ModdedMinecraftWorld(World):
         if self.options.unlock_type == UnlockType.option_tab:
             # Advancement Tab Mode
             advancement_regions: dict[str:Region] = {}
-            for check in self.filtered_advancements:
+            for check, details in self.filtered_advancements.items():
                 # if self.valid_check_difficulty(details["type"], "Advancements"):
                 name = f"adv {check}"
                 region = advancement_regions.setdefault(
                     self.get_advancement_root(check),
                     Region(self.get_advancement_root(check), self.player, self.multiworld),
                 )
-                location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
-                region.locations.append(location)
+
+                if self.valid_check_difficulty(details["type"], "Advancement"):
+                    # only add as location if it has a valid difficulty
+                    location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
+                    region.locations.append(location)
             for region in advancement_regions.values():
                 menu.connect(
                     region,
@@ -239,13 +252,15 @@ class ModdedMinecraftWorld(World):
             # FTB Quests Tab Mode
             # TODO: combine with tree style generation to build out tree, just with different conditions
             quest_regions: dict[str:Region] = {}
-            for check in self.filtered_ftb_quests:
+            for check, details in self.filtered_ftb_quests.items():
                 region = quest_regions.setdefault(
                     check, Region(check, self.player, self.multiworld)
                 )
                 name = f"ftb {check}"
-                location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
-                region.locations.append(location)
+                if self.valid_check_difficulty(details["type"], "FTBQuests"):
+                    # only add as location if it has a valid difficulty
+                    location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
+                    region.locations.append(location)
 
             # TODO: make this one loop
             # with a condition of having the "base" item/check found
@@ -288,8 +303,10 @@ class ModdedMinecraftWorld(World):
                     advancement_id,
                     Region(advancement_id, self.player, self.multiworld),
                 )
-                location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
-                region.locations.append(location)
+                if self.valid_check_difficulty(details["type"], "Advancements"):
+                    # only add as location if it has a valid difficulty
+                    location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
+                    region.locations.append(location)
             for region in advancement_regions.values():
                 # base of advancement tree
                 parent_id = self.get_advancement_parent_id(region.name)
@@ -309,13 +326,15 @@ class ModdedMinecraftWorld(World):
             regions += list(advancement_regions.values())
             # FTB Quests Tree Mode
             quest_regions: dict[str:Region] = {}
-            for check in self.filtered_ftb_quests:
+            for check, details in self.filtered_ftb_quests.items():
                 region = quest_regions.setdefault(
                     check, Region(check, self.player, self.multiworld)
                 )
                 name = f"ftb {check}"
-                location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
-                region.locations.append(location)
+                if self.valid_check_difficulty(details["type"], "FTBQuests"):
+                    # only add as location if it has a valid difficulty
+                    location = ModdedMinecraftLocation(self.player, name, self.location_name_to_id[name], region)
+                    region.locations.append(location)
 
             condition = {
                 "all_completed": lambda parents, state: state.has_all(parents, self.player),
@@ -472,8 +491,14 @@ class ModdedMinecraftWorld(World):
 
     def valid_check_difficulty(self, check_difficulty: str, check_type: str) -> bool:
         if check_type == "Advancements":
-            return check_difficulty in self.options.advancement_check_difficulty
+            return (
+                check_difficulty in self.options.advancement_check_difficulty
+                    and "Advancements" in self.options.activated_modules
+                )
         if check_type == "FTBQuests":
-            return check_difficulty in self.options.ftb_quest_check_shape
+            return (
+                check_difficulty in self.options.ftb_quest_check_shape
+                    and "FTBQuests" in self.options.activated_modules
+                )
         # not sure what would hit this, for now we just ignore it
         return False

@@ -70,13 +70,14 @@ class UnlockType(Choice):
     option_tree = "tree"
     default = option_tree
 
-class FillerItems(OptionList):
+class FillerItems(OptionDict):
     """
     Items to use as filler.
-    Items must be in format "<amount> <item_name>" Example: "1 minecraft:iron_ingot"
+    Items must be in format <amount> <item_name>: <weight>
+    Example: 1 minecraft:iron_ingot: 1
     """
     display_name = "Filler Items"
-    default = ("1 minecraft:iron_ingot",)
+    default = {"1 minecraft:iron_ingot":1}
 
 class ModdedMinecraftStartInventory(StartInventory):
     """
