@@ -43,8 +43,11 @@ class ModdedMinecraftWorld(World):
 
     web = ModdedMinecraftWebWorld()
 
-    filtered_advancements: dict[str:dict] = {}
-    filtered_ftb_quests: dict[str:dict] = {}
+
+    def __init__(self, multiworld, player):
+        self.filtered_advancements: dict[str:dict] = {}
+        self.filtered_ftb_quests: dict[str:dict] = {}
+        super().__init__(multiworld, player)
 
     def generate_early(self) -> None:
         # get data from checks file
