@@ -18,6 +18,7 @@ class Checks(OptionDict):
     """
     Advancements and quests from the game.
     """
+    display_name = "Checks (IF YOU DON'T EDIT THIS THE GAME WON'T GENERATE)"
     # don't show in spoiler log, because this is large as hell
     visibility = Visibility.simple_ui | Visibility.complex_ui | Visibility.template
 
@@ -64,6 +65,8 @@ class FTBQuestCheckShape(OptionList):
 class UnlockType(Choice):
     """
     Controls how locations are accessed.
+    Tab type gives access to a page of advancements/quests at a time.
+    Tree type gives access to the dependants of an advancements/quests
     """
     display_name = "unlock type"
     option_tab = "tab"
