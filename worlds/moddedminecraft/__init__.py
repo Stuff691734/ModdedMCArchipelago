@@ -256,7 +256,7 @@ class ModdedMinecraftWorld(World):
             return "Advancements" in self.options.activated_modules
         if item.startswith(CheckType.FTB_QUESTS):
             return "FTBQuests" in self.options.activated_modules
-        logging.error("This should not be reached 2")
+        logging.error("Found Item with invalid type: %s", item)
         return False
 
     def get_dependencies(self, dependencies: dict|list) -> list[str]:
@@ -303,5 +303,5 @@ class ModdedMinecraftWorld(World):
                     minimum -= 1
             return minimum <= 0
 
-        logging.error("This should not ever be reached")
+        logging.error("Found a dependency that was not a dict/list/str: %s, this should not be possible", dependencies)
         return False
