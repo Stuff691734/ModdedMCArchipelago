@@ -218,7 +218,8 @@ class ModdedMinecraftWorld(World):
             "advancement_check_difficulty",
             "ftb_quest_check_shape",
             "advancement_checks_give_items",
-            "quest_checks_give_rewards"
+            "quest_checks_give_rewards",
+            "roots_unlocked"
         )
         options["activated_modules"] = "|".join(options["activated_modules"])
         options["advancement_check_difficulty"] = "|".join(options["advancement_check_difficulty"])
@@ -281,11 +282,11 @@ class ModdedMinecraftWorld(World):
         details = self.filtered_checks[check]
         if self.options.unlock_type == UnlockType.option_tab:
             return lambda state, check=details["page"]: True
-        else:
-            if not details["dependencies"]:
-                return lambda state, itself=check: state.has(itself, self.player)
-            else:
-                return lambda state, dependencies=details["dependencies"]: self._get_rule(state, dependencies)
+        if not details["dependencies"]:
+            if self.options.roots_unlocked:
+                return lambda state: True
+            return lambda state, itself=check: state.has(itself, self.player)
+        return lambda state, dependencies=details["dependencies"]: self._get_rule(state, dependencies)
 
     def _get_rule(self, state, dependencies: dict|list|str) -> bool:
         if isinstance(dependencies, str):
@@ -303,5 +304,5 @@ class ModdedMinecraftWorld(World):
                     minimum -= 1
             return minimum <= 0
 
-        logging.error("Found a dependency that was not a dict/list/str: %s, this should not be possible", dependencies)
+        logging.error("Found a dependency that was not a dict/list/str: %s, this should not happen", dependencies)
         return False

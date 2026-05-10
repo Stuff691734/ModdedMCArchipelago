@@ -10,7 +10,8 @@ from Options import (
     StartInventory,
     TextChoice,
     Visibility,
-    DefaultOnToggle
+    DefaultOnToggle,
+    Toggle
 )
 
 
@@ -100,6 +101,15 @@ class QuestChecksGiveQuestRewards(DefaultOnToggle):
     """
     Whether to give quest rewards when getting an ftb quests check.
     """
+    display_name = "Quests Give Rewards"
+
+class StartWithRootsUnlocked(Toggle):
+    """
+    Only effective with tree unlock_type
+    With this set to true all checks that don't have any dependencies will be unlocked from the start.
+    eg. root advancements
+    """
+    display_name = "Start With Roots"
 
 OPTION_GROUPS = [
     OptionGroup(
@@ -121,6 +131,7 @@ class ModdedMinecraftOptions(PerGameCommonOptions):
     quest_checks_give_rewards: QuestChecksGiveQuestRewards
     filler_items: FillerItems
     death_link: DeathLink
+    roots_unlocked: StartWithRootsUnlocked
 
     checks: Checks
 
