@@ -5,6 +5,7 @@ import logging
 from BaseClasses import Item, ItemClassification, Location, Region, Tutorial
 from Utils import user_path
 from worlds.AutoWorld import WebWorld, World
+from Options import OptionError
 
 from .locations import item_name_to_id, location_name_to_id
 from .options import OPTION_GROUPS, ModdedMinecraftOptions, UnlockType
@@ -62,6 +63,13 @@ class ModdedMinecraftWorld(World):
         super().__init__(multiworld, player)
 
     def generate_early(self) -> None:
+        if not self.options.roots_unlocked and \
+            len(self.options.start_inventory.items()) == 0 and \
+            len(self.multiworld.game) == 1:
+            # have an actual error instead of just having generation fail
+            raise OptionError("This game has no starting items. Some possible solutions are to turn on "
+            "starting with roots, add an item to start inventory or generate with another game")
+
         # get data from checks file
         file_name = user_path("ModdedMinecraftDataFile.json")
         try:

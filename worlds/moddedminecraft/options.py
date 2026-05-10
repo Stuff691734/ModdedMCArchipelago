@@ -26,13 +26,13 @@ class Checks(OptionDict):
 class FinalGoal(TextChoice):
     """
     The Goal of the Randomizer.
-    Use a custom advancement by using it's resource name ie. "adv minecraft:adventure/adventuring_time"
-    Format: "<type> <advancement_name|quest_name>"
+    Use a custom advancement by using it's resource name ie. "adv minecraft:adventure/adventuring_time (Adventuring Time)"
+    Format: "<type> <advancement_name|quest_name> (<display_name>)"
     type = one of [adv, ftb]
     """
     display_name = "End Goal"
-    option_ender_dragon = "adv minecraft:end/kill_dragon"
-    option_wither = "adv minecraft:nether/summon_wither"
+    option_ender_dragon = "adv minecraft:end/kill_dragon (Free the End)"
+    option_wither = "adv minecraft:nether/summon_wither (Withering Heights)"
     default = option_ender_dragon
 
 class ActivatedModules(OptionList):
@@ -67,9 +67,12 @@ class UnlockType(Choice):
     """
     Controls how locations are accessed.
     Tab type gives access to a page of advancements/quests at a time.
-    Tree type gives access to the dependants of an advancements/quests
+    Tree type gives access to the dependants of an advancements/quests.
+
+    Logic for Tab type is not the best and only takes into account where the quest is placed
+    and not if it is actually accessible, this works fine for advancements but has issues when quests are involved
     """
-    display_name = "unlock type"
+    display_name = "Unlock Type"
     option_tab = "tab"
     option_tree = "tree"
     default = option_tree
@@ -85,17 +88,20 @@ class FillerItems(OptionDict):
 
 class ModdedMinecraftStartInventory(StartInventory):
     """
-    Start with the specified amount of these items. Example: '"adv minecraft:story/root": 1'
-    Format: "<type> <item_name>": 1
+    Start with the specified amount of these items.
+    Format: "<type> <item_name> (<display_name>)": 1
+    Example: {"adv minecraft:story/root (Minecraft)": 1, "adv minecraft:adventure/root (Adventure)": 1}
+    ^^^ This starts you with the root of the story advancement tab and the root of the adventure advancement tab
     Type one of [adv, ftb, item]
     """
-    # mostly here to disable verification as values are often not in location_name_to_id
+    # mostly here to disable verification as values are often not in location_name_to_id yet
     verify_item_name = False
 
 class AdvancementChecksGiveItems(DefaultOnToggle):
     """
     Whether to give the item shown in the advancement icon when getting an advancement check.
     """
+    display_name = "Advancements Give Rewards"
 
 class QuestChecksGiveQuestRewards(DefaultOnToggle):
     """
