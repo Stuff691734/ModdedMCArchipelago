@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from Options import (
     Choice,
     DeathLink,
+    DefaultOnToggle,
     OptionDict,
     OptionGroup,
     OptionList,
@@ -10,8 +11,6 @@ from Options import (
     StartInventory,
     TextChoice,
     Visibility,
-    DefaultOnToggle,
-    Toggle
 )
 
 
@@ -109,7 +108,7 @@ class QuestChecksGiveQuestRewards(DefaultOnToggle):
     """
     display_name = "Quests Give Rewards"
 
-class StartWithRootsUnlocked(Toggle):
+class StartWithRootsUnlocked(DefaultOnToggle):
     """
     Only effective with tree unlock_type
     With this set to true all checks that don't have any dependencies will be unlocked from the start.
