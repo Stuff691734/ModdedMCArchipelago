@@ -24,7 +24,7 @@
 ## Hosting A Game
 
 1. Generate
-2. **RESTART ARCHIPELAGO** (Code modifies the datapackage and that is only generated at archipelago launch)
+2. Either generate again or restart archipelago (Code modifies the datapackage and that only updates at the start of generation or on launch)
 3. Host
 
 ## Issues
