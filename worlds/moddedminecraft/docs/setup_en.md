@@ -29,4 +29,4 @@
 
 ## Issues
 - This apworld does not have any available checks at start. (Generation error: `No more spots to place #### items. Remaining locations are invalid.`)
-  - Add `{"adv minecraft:story/root":1}` to starting items.
+  - Add `{"adv minecraft:story/root (Minecraft)":1}` to starting items.
