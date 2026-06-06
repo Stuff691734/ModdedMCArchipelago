@@ -68,6 +68,8 @@ class ModdedMinecraftWorld(World):
             # have an actual error instead of just having generation fail
             raise OptionError("This game has no starting items. Some possible solutions are to turn on "
             "starting with roots, add an item to start inventory or generate with another game")
+        if self.options.checks.get(self.options.final_goal.current_key) is None:
+            raise OptionError("The final goal does not appear to be in the check data")
 
         # get data from checks file
         file_name = user_path("ModdedMinecraftDataFile.json")
