@@ -59,7 +59,6 @@ class ModdedMinecraftWorld(World):
 
     def __init__(self, multiworld, player):
         self.filtered_checks: dict[str:dict] = {}
-        self.cahced_dependency: dict[str:bool] = {}
         super().__init__(multiworld, player)
 
     def generate_early(self) -> None:
@@ -288,8 +287,6 @@ class ModdedMinecraftWorld(World):
     def get_dependency_rules(self, check: str) -> callable:
         # TODO: Change to rule builder
         details = self.filtered_checks[check]
-        if self.options.unlock_type == UnlockType.option_tab:
-            return lambda state, check=details["page"]: True
         if not details["dependencies"]:
             if self.options.roots_unlocked:
                 return lambda state: True
@@ -299,6 +296,8 @@ class ModdedMinecraftWorld(World):
     def _get_rule(self, state, dependencies: dict|list|str) -> bool:
         if isinstance(dependencies, str):
             # see comment on explicit_indirect_conditions
+            if self.options.unlock_type == UnlockType.option_tab:
+                return state.has(self.filtered_checks[dependencies]["page"], self.player) and state.can_reach_region(dependencies, self.player)
             return state.has(dependencies, self.player) and state.can_reach_region(dependencies, self.player)
         if isinstance(dependencies, list):
             for dependency in dependencies:
