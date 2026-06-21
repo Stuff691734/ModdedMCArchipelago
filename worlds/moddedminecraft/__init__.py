@@ -1,6 +1,7 @@
 import json
 from enum import StrEnum
 import logging
+import re
 
 from BaseClasses import Item, ItemClassification, Location, Region, Tutorial
 from Utils import user_path
@@ -86,7 +87,7 @@ class ModdedMinecraftWorld(World):
 
         def add_item(item):
             if checks.count(item) == 0:
-                checks.append(item)
+                checks.append(filter_text(item))
 
         for item in self.options.filler_items:
             add_item(f"item {item}")
@@ -112,7 +113,7 @@ class ModdedMinecraftWorld(World):
         # =========================================================================================
 
         def recursively_add_checks(check: str):
-            if self.filtered_checks.get(check) is None and self.is_module_activated(check):
+            if self.filtered_checks.get(filter_text(check)) is None and self.is_module_activated(check):
                 try:
                     details = self.options.checks[check]
                 except KeyError:
@@ -121,7 +122,7 @@ class ModdedMinecraftWorld(World):
                 # make sure we don't accidently collect some advancement checks from quests or vice versa
                 # details["dependencies"] = filter(self.is_module_activated, details["dependencies"])
 
-                self.filtered_checks.setdefault(check, details)
+                self.filtered_checks.setdefault(filter_text(check), details)
                 for dependency in self.get_dependencies(details["dependencies"]):
                     recursively_add_checks(dependency)
 
@@ -138,7 +139,7 @@ class ModdedMinecraftWorld(World):
 
     def get_filler_item_name(self) -> str:
         return self.random.choices(
-            list(self.options.filler_items.keys()),
+            map(filter_text, list(self.options.filler_items.keys())),
             list(self.options.filler_items.values())
         )[0]
 
@@ -315,3 +316,11 @@ class ModdedMinecraftWorld(World):
 
         logging.error("Found a dependency that was not a dict/list/str: %s, this should not happen", dependencies)
         return False
+
+
+regex_exclusions = re.compile("[^\u0000-\uFFFF]", re.UNICODE)
+def filter_text(text:str) -> str:
+    """
+    Ensures that text should be valid to be put into a database (needed for online hosting)
+    """
+    return regex_exclusions.sub("", text)
