@@ -17,6 +17,7 @@ from Options import (
 class Checks(OptionDict):
     """
     Advancements and quests from the game.
+    This is not done manually, check the setup guide.
     """
     display_name = "Checks (IF YOU DON'T EDIT THIS THE GAME WON'T GENERATE)"
     # don't show in spoiler log, because this is large as hell
@@ -67,9 +68,6 @@ class UnlockType(Choice):
     Controls how locations are accessed.
     Tab type gives access to a page of advancements/quests at a time.
     Tree type gives access to the dependants of an advancements/quests.
-
-    Logic for Tab type is not the best and only takes into account where the quest is placed
-    and not if it is actually accessible, this works fine for advancements but has issues when quests are involved
     """
     display_name = "Unlock Type"
     option_tab = "tab"
@@ -98,19 +96,33 @@ class ModdedMinecraftStartInventory(StartInventory):
 
 class AdvancementChecksGiveItems(DefaultOnToggle):
     """
-    Whether to give the item shown in the advancement icon when getting an advancement check.
+    Whether to give a reward when getting an advancement check.
+    When off:
+     - advancement rewards will behave as expected in vanilla.
+     - only advancements that have dependants or advancement tabs will have checks associated with them.
+    When on:
+     - advancement rewards will behave as expected in vanilla (ie. still get xp for Return to Sender).
+     - advancement checks will grant a reward based on the advancement icon.
+     - adds filler checks for advancements that have no dependants.
     """
     display_name = "Advancements Give Rewards"
 
 class QuestChecksGiveQuestRewards(DefaultOnToggle):
     """
-    Whether to give quest rewards when getting an ftb quests check.
+    Whether to give a reward when getting an ftb quests check.
+    When off:
+     - quest rewards will behave as you would normally expect from ftb quests (granted for completing quests).
+     - only quests that have dependants or quest chapters will have checks associated with them.
+
+    When on:
+     - receiving a ftb quest check will grant the reward associated with the
+    quest instead of being able to get them by completing the quest.
+     - adds filler checks for quests that have no dependants.
     """
     display_name = "Quests Give Rewards"
 
 class StartWithRootsUnlocked(DefaultOnToggle):
     """
-    Only effective with tree unlock_type
     With this set to true all checks that don't have any dependencies will be unlocked from the start.
     eg. root advancements
     """
