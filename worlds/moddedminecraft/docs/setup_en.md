@@ -6,6 +6,7 @@
 - Minecraft Mod Loader
   - Currently NeoForge and Forge supported
 - [Archipelago mod for Minecraft](https://github.com/Stuff691734/Archipelago)
+- [Modded Mineacraft Apworld](https://github.com/Stuff691734/ModdedMCArchipelago)
 
 ## Joining a Multiworld Game
 
