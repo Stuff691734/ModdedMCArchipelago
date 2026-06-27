@@ -98,6 +98,8 @@ class ModdedMinecraftWorld(World):
             for dependency in self.get_dependencies(details["dependencies"]):
                 add_item(dependency)
 
+        for starting_check in self.options.start_inventory:
+            add_item(starting_check)
 
         checks = {check: i + 6 for i, check in enumerate(checks)}
         with open(file_name, "w", encoding="utf-8") as file:
