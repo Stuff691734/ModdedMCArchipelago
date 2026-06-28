@@ -141,7 +141,7 @@ class ModdedMinecraftWorld(World):
 
     def get_filler_item_name(self) -> str:
         return self.random.choices(
-            map(filter_text, list(self.options.filler_items.keys())),
+            list(map(filter_text, self.options.filler_items.keys())),
             list(self.options.filler_items.values())
         )[0]
 
