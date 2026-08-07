@@ -124,6 +124,8 @@ class ModdedMinecraftWorld(World):
                 # make sure we don't accidently collect some advancement checks from quests or vice versa
                 # details["dependencies"] = filter(self.is_module_activated, details["dependencies"])
 
+                details["dependencies"] = filter_dependencies(details["dependencies"])
+
                 self.filtered_checks.setdefault(filter_text(check), details)
                 for dependency in self.get_dependencies(details["dependencies"]):
                     recursively_add_checks(dependency)
@@ -326,3 +328,18 @@ def filter_text(text:str) -> str:
     Ensures that text should be valid to be put into a database (needed for online hosting)
     """
     return regex_exclusions.sub("", text)
+
+def filter_dependencies(dependencies):
+    """
+    Ensures that dependency notations follow the same filtering as check names
+    """
+    if isinstance(dependencies, dict):
+        dependencies["checks"] = filter_dependencies(dependencies["checks"])
+        return dependencies
+    if isinstance(dependencies, list):
+        return [filter_dependencies(dependency) for dependency in dependencies]
+    if isinstance(dependencies, str):
+        return filter_text(dependencies)
+
+    logging.error("Found a dependency that was not a dict/list/str: %s, this should not happen", dependencies)
+    return None
