@@ -115,14 +115,11 @@ class ModdedMinecraftWorld(World):
         # =========================================================================================
 
         def recursively_add_checks(check: str):
-            if self.filtered_checks.get(filter_text(check)) is None and self.is_module_activated(check):
+            if self.filtered_checks.get(filter_text(check)) is None:
                 try:
                     details = self.options.checks[check]
                 except KeyError:
                     details = {"type": None, "dependencies": [], "page": check}
-
-                # make sure we don't accidently collect some advancement checks from quests or vice versa
-                # details["dependencies"] = filter(self.is_module_activated, details["dependencies"])
 
                 details["dependencies"] = filter_dependencies(details["dependencies"])
 
@@ -161,21 +158,24 @@ class ModdedMinecraftWorld(World):
             elif self.options.unlock_type == self.options.unlock_type.option_tree:
                 # Tree Mode
                 dependencies = self.get_dependencies(details["dependencies"])
-                if not dependencies:
-                    items.setdefault(check, self.create_item(check))
+                if not self.has_dependencies(dependencies):
+                    if self.valid_check_difficulty(details["type"], check):
+                        items.setdefault(check, self.create_item(check))
                 else:
                     for dependency in dependencies:
-                        items.setdefault(dependency, self.create_item(dependency))
+                        if self.valid_check_difficulty(self.filtered_checks[dependency]["type"], dependency):
+                            items.setdefault(dependency, self.create_item(dependency))
 
         item_pool += list(items.values())
 
-        for item in self.filtered_checks:
+        for item, details in self.filtered_checks.items():
             if items.get(item) is None:
                 # not already a check and it should be getting randomized
-                if item.startswith(CheckType.ADVANCEMENT) and self.options.advancement_checks_give_items:
-                    filler_items.append(self.create_item(item, ItemClassification.filler))
-                if item.startswith(CheckType.FTB_QUESTS) and self.options.quest_checks_give_rewards:
-                    filler_items.append(self.create_item(item, ItemClassification.filler))
+                if self.valid_check_difficulty(details["type"], item):
+                    if item.startswith(CheckType.ADVANCEMENT) and self.options.advancement_checks_give_items:
+                        filler_items.append(self.create_item(item, ItemClassification.filler))
+                    if item.startswith(CheckType.FTB_QUESTS) and self.options.quest_checks_give_rewards:
+                        filler_items.append(self.create_item(item, ItemClassification.filler))
 
         if total_locations - len(item_pool) > 0:
             # avoid overfilling filler items
@@ -191,16 +191,15 @@ class ModdedMinecraftWorld(World):
         # Create regions
         regions: dict[str:Region] = {}
         for check, details in self.filtered_checks.items():
-            if self.is_module_activated(check):
-                region = regions.setdefault(
-                    check,
-                    Region(check, self.player, self.multiworld),
-                )
+            region = regions.setdefault(
+                check,
+                Region(check, self.player, self.multiworld),
+            )
 
-                if self.valid_check_difficulty(details["type"], check):
-                    # only add as location if it has a valid difficulty
-                    location = ModdedMinecraftLocation(self.player, check, self.location_name_to_id[check], region)
-                    region.locations.append(location)
+            if self.valid_check_difficulty(details["type"], check):
+                # only add as location if it has a valid difficulty
+                location = ModdedMinecraftLocation(self.player, check, self.location_name_to_id[check], region)
+                region.locations.append(location)
 
         for region_name, region in regions.items():
             dependencies = self.get_dependencies(self.filtered_checks[region_name]["dependencies"])
@@ -288,13 +287,13 @@ class ModdedMinecraftWorld(World):
                 elif isinstance(dependency, list):
                     output.update(self.get_dependencies(dependency))
 
-        return [item for item in output if self.is_module_activated(item)]
+        return list(output)
 
 
     def get_dependency_rules(self, check: str) -> callable:
         # TODO: Change to rule builder
         details = self.filtered_checks[check]
-        if not details["dependencies"]:
+        if not self.has_dependencies(details["dependencies"]):
             if self.options.roots_unlocked:
                 return lambda state: True
             return lambda state, itself=check: state.has(itself, self.player)
@@ -302,6 +301,9 @@ class ModdedMinecraftWorld(World):
 
     def _get_rule(self, state, dependencies: dict|list|str) -> bool:
         if isinstance(dependencies, str):
+            details = self.filtered_checks[dependencies]
+            if details is None or not self.valid_check_difficulty(details["type"], dependencies):
+                return state.can_reach_region(dependencies, self.player)
             # see comment on explicit_indirect_conditions
             if self.options.unlock_type == UnlockType.option_tab:
                 return state.has(self.filtered_checks[dependencies]["page"], self.player) and state.can_reach_region(dependencies, self.player)
@@ -321,6 +323,26 @@ class ModdedMinecraftWorld(World):
         logging.error("Found a dependency that was not a dict/list/str: %s, this should not happen", dependencies)
         return False
 
+    def has_dependencies(self, dependencies) -> bool:
+        if not dependencies:
+            return False
+        if isinstance(dependencies, str):
+            return (
+                self.valid_check_difficulty(self.filtered_checks[dependencies]["type"], dependencies) or
+                self.has_dependencies(self.filtered_checks[dependencies]["dependencies"])
+            )
+        if isinstance(dependencies, list):
+            for dependency in dependencies:
+                if self.has_dependencies(dependency):
+                    return True
+            return False
+        if isinstance(dependencies, dict):
+            minimum = dependencies["minimum"]
+            for dependency in dependencies["checks"]:
+                if not self.has_dependencies(dependency):
+                    minimum -= 1
+            return minimum <= 0
+        return True
 
 regex_exclusions = re.compile("[^\u0000-\uFFFF]", re.UNICODE)
 def filter_text(text:str) -> str:
