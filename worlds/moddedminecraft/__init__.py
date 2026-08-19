@@ -37,6 +37,9 @@ class CheckType(StrEnum):
     ADVANCEMENT = "adv"
     FTB_QUESTS = "ftb"
 
+class DataPackageChangedError(OptionError):
+    pass
+
 
 class ModdedMinecraftWorld(World):
     game = "Modded Minecraft"
@@ -60,6 +63,7 @@ class ModdedMinecraftWorld(World):
 
     def __init__(self, multiworld, player):
         self.filtered_checks: dict[str:dict] = {}
+        self.datapackage_changed_flag: bool = False
         super().__init__(multiworld, player)
 
     def generate_early(self) -> None:
@@ -86,8 +90,9 @@ class ModdedMinecraftWorld(World):
             checks: list[str] = []
 
         def add_item(item):
-            if checks.count(item) == 0:
+            if item not in checks:
                 checks.append(filter_text(item))
+                self.datapackage_changed_flag = True
 
         for item in self.options.filler_items:
             add_item(f"item {item}")
@@ -104,6 +109,9 @@ class ModdedMinecraftWorld(World):
         checks = {check: i + 6 for i, check in enumerate(checks)}
         with open(file_name, "w", encoding="utf-8") as file:
             json.dump({"version": 3, "checks": checks}, file)
+
+        if self.datapackage_changed_flag:
+            raise DataPackageChangedError("Data Package Updated. Please generate again.")
 
         self.item_name_to_id = checks
         self.location_name_to_id = checks
