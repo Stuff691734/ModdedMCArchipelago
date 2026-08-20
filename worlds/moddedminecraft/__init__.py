@@ -1,14 +1,11 @@
-import json
 from enum import StrEnum
 import logging
 import re
 
 from BaseClasses import Item, ItemClassification, Location, Region, Tutorial
-from Utils import user_path
 from worlds.AutoWorld import WebWorld, World
 from Options import OptionError
 
-from .locations import item_name_to_id, location_name_to_id
 from .options import OPTION_GROUPS, ModdedMinecraftOptions, UnlockType
 
 
@@ -37,10 +34,6 @@ class CheckType(StrEnum):
     ADVANCEMENT = "adv"
     FTB_QUESTS = "ftb"
 
-class DataPackageChangedError(OptionError):
-    pass
-
-
 class ModdedMinecraftWorld(World):
     game = "Modded Minecraft"
 
@@ -48,8 +41,8 @@ class ModdedMinecraftWorld(World):
 
     options_dataclass = ModdedMinecraftOptions
 
-    item_name_to_id = item_name_to_id
-    location_name_to_id = location_name_to_id
+    item_name_to_id = {}
+    location_name_to_id = {}
 
     web = ModdedMinecraftWebWorld()
 
@@ -63,7 +56,6 @@ class ModdedMinecraftWorld(World):
 
     def __init__(self, multiworld, player):
         self.filtered_checks: dict[str:dict] = {}
-        self.datapackage_changed_flag: bool = False
         super().__init__(multiworld, player)
 
     def generate_early(self) -> None:
@@ -76,23 +68,12 @@ class ModdedMinecraftWorld(World):
         if self.options.checks.get(self.options.final_goal.current_key) is None:
             raise OptionError("The final goal does not appear to be in the check data")
 
-        # get data from checks file
-        file_name = user_path("ModdedMinecraftDataFile.json")
-        try:
-            with open(file_name, encoding="utf-8") as file:
-                data = json.load(file)
-                if data.get("version") == 3:
-                    checks: list[str] = list(data.get("checks"))
-                else:
-                    checks = []
-
-        except (json.JSONDecodeError, FileNotFoundError):
-            checks: list[str] = []
+        # get from class var in cases with multiple worlds
+        checks: list[str] = list(__class__.item_name_to_id.keys())
 
         def add_item(item):
             if item not in checks:
                 checks.append(filter_text(item))
-                self.datapackage_changed_flag = True
 
         for item in self.options.filler_items:
             add_item(f"item {item}")
@@ -106,15 +87,11 @@ class ModdedMinecraftWorld(World):
         for starting_check in self.options.start_inventory:
             add_item(starting_check)
 
-        checks = {check: i + 6 for i, check in enumerate(checks)}
-        with open(file_name, "w", encoding="utf-8") as file:
-            json.dump({"version": 3, "checks": checks}, file)
+        checks_to_id = {check: i for i, check in enumerate(checks)}
 
-        if self.datapackage_changed_flag:
-            raise DataPackageChangedError("Data Package Updated. Please generate again.")
-
-        self.item_name_to_id = checks
-        self.location_name_to_id = checks
+        # needs to be __class__ for get_data_package_data and multiple worlds to work
+        __class__.item_name_to_id = checks_to_id
+        __class__.location_name_to_id = checks_to_id
 
         # =========================================================================================
         # creates a dict with values we need instead of using all values
@@ -142,6 +119,8 @@ class ModdedMinecraftWorld(World):
         # ensure end goal is in filtered advancements and/or quests
         recursively_add_checks(self.options.final_goal.current_key)
 
+    def modify_multidata(self, multidata: dict):
+        multidata["datapackage"]["Modded Minecraft"] = self.get_data_package_data()
 
     def create_filler(self):
         return self.create_item(f"item {self.get_filler_item_name()}", ItemClassification.filler)
@@ -149,7 +128,8 @@ class ModdedMinecraftWorld(World):
     def get_filler_item_name(self) -> str:
         return self.random.choices(
             list(map(filter_text, self.options.filler_items.keys())),
-            list(self.options.filler_items.values())
+            list(self.options.filler_items.values()),
+            k = 1
         )[0]
 
     def create_items(self) -> None:
