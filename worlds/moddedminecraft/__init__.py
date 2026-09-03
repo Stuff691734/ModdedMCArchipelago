@@ -72,7 +72,7 @@ class ModdedMinecraftWorld(World):
         checks: list[str] = list(__class__.item_name_to_id.keys())
 
         def add_item(item):
-            if item not in checks:
+            if item is not None and item not in checks:
                 checks.append(filter_text(item))
 
         for item in self.options.filler_items:
