@@ -186,7 +186,7 @@ class ModdedMinecraftWorld(World):
 
             if self.valid_check_difficulty(details["type"], check):
                 # only add as location if it has a valid difficulty
-                location = ModdedMinecraftLocation(self.player, check, self.location_name_to_id[check], region)
+                location = ModdedMinecraftLocation(self.player, check, __class__.location_name_to_id[check], region)
                 region.locations.append(location)
 
         for region_name, region in regions.items():
@@ -236,7 +236,7 @@ class ModdedMinecraftWorld(World):
         name: str,
         classification: ItemClassification = ItemClassification.progression
     ) -> ModdedMinecraftItem:
-        return ModdedMinecraftItem(name, classification, self.location_name_to_id[name], self.player)
+        return ModdedMinecraftItem(name, classification, __class__.location_name_to_id[name], self.player)
 
 
     def valid_check_difficulty(self, check_type: str, check_name: str) -> bool:
