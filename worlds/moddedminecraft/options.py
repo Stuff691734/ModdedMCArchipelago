@@ -12,6 +12,7 @@ from Options import (
     TextChoice,
     Visibility,
 )
+from Options import LocalItems, NonLocalItems, StartHints, StartLocationHints, ExcludeLocations, PriorityLocations
 
 
 class Checks(OptionDict):
@@ -128,12 +129,49 @@ class StartWithRootsUnlocked(DefaultOnToggle):
     """
     display_name = "Start With Roots"
 
+class NoVerifyLocalItems(LocalItems):
+    verify_item_name = False
+    __doc__ = LocalItems.__doc__
+
+class NoVerifyNonLocalItems(NonLocalItems):
+    verify_item_name = False
+    __doc__ = NonLocalItems.__doc__
+
+class NoVerifyStarthints(StartHints):
+    verify_item_name = False
+    __doc__ = StartHints.__doc__
+
+class NoVerifyStartLocationHints(StartLocationHints):
+    verify_location_name = False
+    __doc__ = StartLocationHints.__doc__
+
+class NoVerifyExcludeLocations(ExcludeLocations):
+    verify_location_name = False
+    __doc__ = ExcludeLocations.__doc__
+
+class NoVerifyPriorityLocations(PriorityLocations):
+    verify_location_name = False
+    __doc__ = PriorityLocations.__doc__
+
 OPTION_GROUPS = [
+    OptionGroup(
+        "Filler Item Options", [
+            FillerItems,
+            QuestChecksGiveQuestRewards,
+            AdvancementChecksGiveItems,
+        ]
+    ),
     OptionGroup(
         "Item & Location Options", [
             ModdedMinecraftStartInventory,
+            NoVerifyLocalItems,
+            NoVerifyNonLocalItems,
+            NoVerifyStarthints,
+            NoVerifyStartLocationHints,
+            NoVerifyExcludeLocations,
+            NoVerifyPriorityLocations
         ]
-    )
+    ),
 ]
 
 
@@ -153,3 +191,9 @@ class ModdedMinecraftOptions(PerGameCommonOptions):
     checks: Checks
 
     start_inventory: ModdedMinecraftStartInventory
+    local_items: NoVerifyLocalItems
+    non_local_items: NoVerifyNonLocalItems
+    start_hints: NoVerifyStarthints
+    start_location_hints: NoVerifyStartLocationHints
+    exclude_locations: NoVerifyExcludeLocations
+    priority_locations: NoVerifyPriorityLocations
