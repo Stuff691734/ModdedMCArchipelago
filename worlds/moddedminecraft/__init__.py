@@ -1,11 +1,14 @@
+import json
 from enum import StrEnum
 import logging
 import re
 
 from BaseClasses import Item, ItemClassification, Location, Region, Tutorial
+from Utils import user_path
 from worlds.AutoWorld import WebWorld, World
 from Options import OptionError
 
+from .locations import location_name_to_id, item_name_to_id
 from .options import OPTION_GROUPS, ModdedMinecraftOptions, UnlockType
 
 
@@ -41,8 +44,8 @@ class ModdedMinecraftWorld(World):
 
     options_dataclass = ModdedMinecraftOptions
 
-    item_name_to_id = {}
-    location_name_to_id = {}
+    item_name_to_id = item_name_to_id
+    location_name_to_id = location_name_to_id
 
     web = ModdedMinecraftWebWorld()
 
@@ -87,11 +90,13 @@ class ModdedMinecraftWorld(World):
         for starting_check in self.options.start_inventory:
             add_item(starting_check)
 
-        checks_to_id = {check: i for i, check in enumerate(checks)}
+        checks = {check: i + 1 for i, check in enumerate(checks)}
+        with open(user_path("ModdedMinecraftDataFile.json"), "w", encoding="utf-8") as file:
+            json.dump({"version": 3, "checks": checks}, file)
 
         # needs to be __class__ for get_data_package_data and multiple worlds to work
-        __class__.item_name_to_id = checks_to_id
-        __class__.location_name_to_id = checks_to_id
+        __class__.item_name_to_id = checks
+        __class__.location_name_to_id = checks
 
         # =========================================================================================
         # creates a dict with values we need instead of using all values
@@ -120,7 +125,10 @@ class ModdedMinecraftWorld(World):
         recursively_add_checks(self.options.final_goal.current_key)
 
     def modify_multidata(self, multidata: dict):
-        multidata["datapackage"]["Modded Minecraft"] = self.get_data_package_data()
+        __class__.item_name_groups["Everything"] = __class__.item_name_to_id.keys()
+        __class__.location_name_groups["Everywhere"] = __class__.location_name_to_id.keys()
+
+        multidata["datapackage"]["Modded Minecraft"] = __class__.get_data_package_data()
 
     def create_filler(self):
         return self.create_item(f"item {self.get_filler_item_name()}", ItemClassification.filler)
