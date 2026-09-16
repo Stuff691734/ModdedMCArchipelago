@@ -12,7 +12,7 @@ from Options import (
     TextChoice,
     Visibility,
 )
-from Options import LocalItems, NonLocalItems, StartHints, StartLocationHints, ExcludeLocations, PriorityLocations
+from Options import LocalItems, NonLocalItems, StartHints, StartLocationHints, ExcludeLocations, PriorityLocations, StartInventoryPool
 
 
 class Checks(OptionDict):
@@ -129,6 +129,10 @@ class StartWithRootsUnlocked(DefaultOnToggle):
     """
     display_name = "Start With Roots"
 
+class NoVerifyStartLocationPool(StartInventoryPool):
+    verify_item_name = False
+    __doc__ = StartInventoryPool.__doc__
+
 class NoVerifyLocalItems(LocalItems):
     verify_item_name = False
     __doc__ = LocalItems.__doc__
@@ -164,6 +168,7 @@ OPTION_GROUPS = [
     OptionGroup(
         "Item & Location Options", [
             ModdedMinecraftStartInventory,
+            NoVerifyStartLocationPool,
             NoVerifyLocalItems,
             NoVerifyNonLocalItems,
             NoVerifyStarthints,
@@ -191,6 +196,7 @@ class ModdedMinecraftOptions(PerGameCommonOptions):
     checks: Checks
 
     start_inventory: ModdedMinecraftStartInventory
+    start_inventory_from_pool: NoVerifyStartLocationPool
     local_items: NoVerifyLocalItems
     non_local_items: NoVerifyNonLocalItems
     start_hints: NoVerifyStarthints

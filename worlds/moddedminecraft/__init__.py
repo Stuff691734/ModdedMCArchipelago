@@ -64,6 +64,7 @@ class ModdedMinecraftWorld(World):
     def generate_early(self) -> None:
         if not self.options.roots_unlocked and \
             len(self.options.start_inventory.items()) == 0 and \
+            len(self.options.start_inventory_from_pool.items()) == 0 and \
             len(self.multiworld.game) == 1:
             # have an actual error instead of just having generation fail
             raise OptionError("This game has no starting items. Some possible solutions are to turn on "
