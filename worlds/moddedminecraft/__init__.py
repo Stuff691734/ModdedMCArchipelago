@@ -148,7 +148,7 @@ class ModdedMinecraftWorld(World):
         filler_items = []
         items: dict[str: ModdedMinecraftItem] = {}
         for check, details in self.filtered_checks.items():
-            if self.options.unlock_type == UnlockType.option_tab:
+            if self.options.unlock_type == self.options.unlock_type.option_tab:
                 # Tab Mode
                 items.setdefault(details["page"], self.create_item(details["page"]))
 
@@ -293,7 +293,7 @@ class ModdedMinecraftWorld(World):
         if not self.has_dependencies(details["dependencies"]):
             if self.options.roots_unlocked:
                 return lambda state: True
-            return lambda state, itself=check: state.has(itself, self.player)
+            return lambda state, dependencies=check: self._get_rule(state, dependencies)
         return lambda state, dependencies=details["dependencies"]: self._get_rule(state, dependencies)
 
     def _get_rule(self, state, dependencies: dict|list|str) -> bool:
@@ -301,10 +301,16 @@ class ModdedMinecraftWorld(World):
             details = self.filtered_checks[dependencies]
             if details is None or not self.valid_check_difficulty(details["type"], dependencies):
                 return state.can_reach_region(dependencies, self.player)
+
+            # can always reach the region when it does not have any dependencies
+            if self.has_dependencies(details["dependencies"]):
+                if not state.can_reach_region(dependencies, self.player):
+                    return False
+
             # see comment on explicit_indirect_conditions
-            if self.options.unlock_type == UnlockType.option_tab:
-                return state.has(self.filtered_checks[dependencies]["page"], self.player) and state.can_reach_region(dependencies, self.player)
-            return state.has(dependencies, self.player) and state.can_reach_region(dependencies, self.player)
+            if self.options.unlock_type == self.options.unlock_type.option_tab:
+                return state.has(self.filtered_checks[dependencies]["page"], self.player)
+            return state.has(dependencies, self.player)
         if isinstance(dependencies, list):
             for dependency in dependencies:
                 if not self._get_rule(state, dependency):
@@ -336,7 +342,7 @@ class ModdedMinecraftWorld(World):
         if isinstance(dependencies, dict):
             minimum = dependencies["minimum"]
             for dependency in dependencies["checks"]:
-                if not self.has_dependencies(dependency):
+                if self.has_dependencies(dependency):
                     minimum -= 1
             return minimum <= 0
         return True
