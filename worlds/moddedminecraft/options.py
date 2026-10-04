@@ -39,11 +39,11 @@ class FinalGoal(TextChoice):
 class ActivatedModules(OptionList):
     """
     Sets which modules are activated.
-    valid options are ["Advancements", "FTBQuests"]
+    valid options are ["Advancements", "FTBQuests", "BetterQuesting"]
     """
     # TODO: should I make this into multiple toggles?
     display_name = "Activated Modules"
-    default = ("Advancements", "FTBQuests")
+    default = ("Advancements", "FTBQuests", "BetterQuesting")
 
 class AdvancementCheckDifficulty(OptionList):
     """
@@ -63,6 +63,14 @@ class FTBQuestCheckShape(OptionList):
     # should probably either mention this or make it an exclude list
     display_name = "FTB Quest Shapes"
     default = ("circle", "square", "rsquare", "diamond", "pentagon", "hexagon", "octagon", "heart", "gear", "none")
+
+class BetterQuestingShape(OptionList):
+    """
+    Shapes of Better Questing quests that will be locations and considered for logic.
+    valid options for base Better Questing are ["main", "other"]
+    """
+    display_name = "Better Questing Shapes"
+    default = ("main", "other")
 
 class UnlockType(Choice):
     """
@@ -185,6 +193,7 @@ class ModdedMinecraftOptions(PerGameCommonOptions):
     advancement_check_difficulty: AdvancementCheckDifficulty
     activated_modules: ActivatedModules
     ftb_quest_check_shape: FTBQuestCheckShape
+    better_questing_shape: BetterQuestingShape
     unlock_type: UnlockType
     final_goal: FinalGoal
     advancement_checks_give_items: AdvancementChecksGiveItems

@@ -36,6 +36,7 @@ class ModdedMinecraftWebWorld(WebWorld):
 class CheckType(StrEnum):
     ADVANCEMENT = "adv"
     FTB_QUESTS = "ftb"
+    BETTER_QUESTING = "bq"
 
 class ModdedMinecraftWorld(World):
     game = "Modded Minecraft"
@@ -227,6 +228,7 @@ class ModdedMinecraftWorld(World):
             "activated_modules",
             "advancement_check_difficulty",
             "ftb_quest_check_shape",
+            "better_questing_shape",
             "advancement_checks_give_items",
             "quest_checks_give_rewards",
             "roots_unlocked"
@@ -234,6 +236,7 @@ class ModdedMinecraftWorld(World):
         options["activated_modules"] = "|".join(options["activated_modules"])
         options["advancement_check_difficulty"] = "|".join(options["advancement_check_difficulty"])
         options["ftb_quest_check_shape"] = "|".join(options["ftb_quest_check_shape"])
+        options["better_questing_shape"] = "|".join(options["better_questing_shape"])
 
         return options
 
@@ -259,6 +262,11 @@ class ModdedMinecraftWorld(World):
                 "FTBQuests" in self.options.activated_modules and
                 check_type in self.options.ftb_quest_check_shape
             )
+        if check_name.startswith(CheckType.BETTER_QUESTING):
+            return (
+                "BetterQuesting" in self.options.activated_modules and
+                check_type in self.options.better_questing_shape
+            )
         # not sure what would hit this, for now we just ignore it
         return False
 
@@ -267,6 +275,8 @@ class ModdedMinecraftWorld(World):
             return "Advancements" in self.options.activated_modules
         if item.startswith(CheckType.FTB_QUESTS):
             return "FTBQuests" in self.options.activated_modules
+        if item.startswith(CheckType.BETTER_QUESTING):
+            return "BetterQuesting" in self.options.activated_modules
         logging.error("Found Item with invalid type: %s", item)
         return False
 
