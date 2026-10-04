@@ -329,22 +329,6 @@ class ModdedMinecraftWorld(World):
     def has_dependencies(self, dependencies) -> bool:
         if not dependencies:
             return False
-        if isinstance(dependencies, str):
-            return (
-                self.valid_check_difficulty(self.filtered_checks[dependencies]["type"], dependencies) or
-                self.has_dependencies(self.filtered_checks[dependencies]["dependencies"])
-            )
-        if isinstance(dependencies, list):
-            for dependency in dependencies:
-                if self.has_dependencies(dependency):
-                    return True
-            return False
-        if isinstance(dependencies, dict):
-            minimum = dependencies["minimum"]
-            for dependency in dependencies["checks"]:
-                if self.has_dependencies(dependency):
-                    minimum -= 1
-            return minimum <= 0
         return True
 
 regex_exclusions = re.compile("[^\u0000-\uFFFF]", re.UNICODE)
