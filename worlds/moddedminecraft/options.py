@@ -20,7 +20,7 @@ class Checks(OptionDict):
     Advancements and quests from the game.
     This is not done manually, check the setup guide.
     """
-    display_name = "Checks (IF YOU DON'T EDIT THIS THE GAME WON'T GENERATE)"
+    display_name = "Checks (REQUIRED, check setup guide for how to fill this in)"
     # don't show in spoiler log, because this is large as hell
     visibility = Visibility.simple_ui | Visibility.complex_ui | Visibility.template
 
