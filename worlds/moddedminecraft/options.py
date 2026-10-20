@@ -130,6 +130,20 @@ class QuestChecksGiveQuestRewards(DefaultOnToggle):
     """
     display_name = "Quests Give Rewards"
 
+class BetterQuestingChecksGiveQuestRewards(DefaultOnToggle):
+    """
+    Whether to give a reward when getting an better questing check.
+    When off:
+     - quest rewards will behave as you would normally expect from better questing (granted for completing quests).
+     - only quests that have dependants or quest chapters will have checks associated with them.
+
+    When on:
+     - receiving a better questing check will grant the reward associated with the
+    quest instead of being able to get them by completing the quest.
+     - adds filler checks for quests that have no dependants.
+    """
+    display_name = "Are Better Questing Quest Rewards Randomized"
+
 class StartWithRootsUnlocked(DefaultOnToggle):
     """
     With this set to true all checks that don't have any dependencies will be unlocked from the start.
@@ -171,6 +185,7 @@ OPTION_GROUPS = [
             FillerItems,
             QuestChecksGiveQuestRewards,
             AdvancementChecksGiveItems,
+            BetterQuestingChecksGiveQuestRewards
         ]
     ),
     OptionGroup(
@@ -198,6 +213,7 @@ class ModdedMinecraftOptions(PerGameCommonOptions):
     final_goal: FinalGoal
     advancement_checks_give_items: AdvancementChecksGiveItems
     quest_checks_give_rewards: QuestChecksGiveQuestRewards
+    better_questing_gives_rewards: BetterQuestingChecksGiveQuestRewards
     filler_items: FillerItems
     death_link: DeathLink
     roots_unlocked: StartWithRootsUnlocked

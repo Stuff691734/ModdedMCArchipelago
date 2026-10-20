@@ -231,6 +231,7 @@ class ModdedMinecraftWorld(World):
             "better_questing_shape",
             "advancement_checks_give_items",
             "quest_checks_give_rewards",
+            "better_questing_gives_rewards",
             "roots_unlocked"
         )
         options["activated_modules"] = "|".join(options["activated_modules"])
