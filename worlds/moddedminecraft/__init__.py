@@ -305,6 +305,8 @@ class ModdedMinecraftWorld(World):
             if self.options.roots_unlocked:
                 return lambda state: True
             return lambda state, dependencies=check: self._get_rule(state, dependencies)
+        if self.options.unlock_type == self.options.unlock_type.option_tab:
+            return lambda state, dependencies=details["dependencies"]: self._get_rule(state, dependencies) and state.has(details["page"], self.player)
         return lambda state, dependencies=details["dependencies"]: self._get_rule(state, dependencies)
 
     def _get_rule(self, state, dependencies: dict|list|str) -> bool:
