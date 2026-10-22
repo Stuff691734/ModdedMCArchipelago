@@ -71,13 +71,10 @@ class ModdedMinecraftWorld(World):
             raise OptionError("This game has no starting items. Some possible solutions are to turn on "
             "starting with roots, add an item to start inventory or generate with another game")
         if self.options.checks.get(self.options.final_goal.current_key) is None:
-            raise OptionError("The final goal does not appear to be in the check data")
-        if not self.valid_check_difficulty(
-            self.options.checks.get(self.options.final_goal.current_key)["type"],
-            self.options.final_goal.current_key
-        ):
-            raise OptionError("The final goal is not randomized, check activated_modules "
-            "and shape/difficulty settings for the chosen goal.")
+            raise OptionError(f"The final goal ({self.options.final_goal.current_key}) does not appear to be in the check data")
+        if not self.is_module_activated(self.options.final_goal.current_key):
+            logging.warning(f"The final goal ({self.options.final_goal.current_key}) is not randomized. "
+            "Did you turn off advancements and forget to change your goal?")
 
         # get from class var in cases with multiple worlds
         checks: list[str] = list(__class__.item_name_to_id.keys())
